@@ -460,7 +460,7 @@ export default function App() {
   }, [scope, config, searchQuery]);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#F4F7F4] text-[#1E3A34]">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[#F4F7F4] text-[#1E3A34]">
       {/* Sidebar Navigation */}
       <Sidebar
         config={config}

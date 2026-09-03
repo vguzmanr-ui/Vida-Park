@@ -3,6 +3,21 @@ import { AppConfig, Scope, UnitStatus } from '../types';
 import { STAGES } from '../constants/catalog';
 import { uid } from '../services/storage';
 import { ConfirmModal } from './ConfirmModal';
+import {
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  X,
+  Star,
+  Building2,
+  Layers,
+  CheckCircle2,
+  Clock,
+  Circle,
+  HelpCircle,
+  Plus,
+  User,
+} from 'lucide-react';
 
 interface SidebarProps {
   config: AppConfig;
@@ -35,6 +50,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onUpdateConfig,
   onToast,
 }) => {
+  // Mobile dropdown open/close state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const [floorFormOpen, setFloorFormOpen] = useState(false);
   const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
   const [floorLabel, setFloorLabel] = useState('');
@@ -208,404 +226,575 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onToast('Piso eliminado');
   };
 
-  return (
-    <aside className="w-full lg:w-[296px] shrink-0 min-h-screen bg-gradient-to-b from-[#22406E] via-[#3C6FB0] to-[#2E5A94] text-white p-5 lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto flex flex-col gap-5 shadow-lg">
-      {/* Brand box */}
-      <div className="bg-white rounded-lg p-3.5 flex flex-col items-center justify-center gap-3 shadow-sm">
-        {/* Vida Park Logo */}
-        <div className="flex items-center justify-center gap-2.5 w-full">
-          <img
-            src="/assets/logo-vp.svg"
-            alt="Vida Park"
-            className="h-11 w-auto object-contain rounded-xs shadow-xs"
-            loading="eager"
-          />
-          <div className="flex flex-col text-left">
-            <span className="font-display font-bold text-xl tracking-tight text-[#22406E] leading-none">
-              VIDA <span className="text-[#8DC63F]">PARK</span>
+  // Helper for mobile display label
+  const getActiveScopeText = () => {
+    if (scope.type === 'all') return 'Todas las Torres';
+    if (scope.type === 'tower') return `Torre ${scope.towerId}`;
+    if (scope.type === 'floor') {
+      const fl = config.towers.find(t => t.id === scope.towerId)?.floors.find(f => f.id === scope.floorId);
+      return `Torre ${scope.towerId} · ${fl?.label || 'Piso'}`;
+    }
+    if (scope.type === 'status') {
+      switch (scope.status) {
+        case 'done': return 'Completas (100%)';
+        case 'in_progress': return 'En Progreso';
+        case 'not_started': return 'Sin Iniciar';
+        case 'no_tasks': return 'Sin Tareas';
+        default: return 'Pendientes';
+      }
+    }
+    if (scope.type === 'reforms') return '⭐ Con Reforma';
+    if (scope.type === 'areas') return 'Zonas Comunes';
+    return 'Filtro Activo';
+  };
+
+  // Shared Filters Body Component (rendered inside desktop aside or mobile dropdown)
+  const renderFiltersContent = (isMobile: boolean = false) => {
+    const handleScopeClick = (newScope: Scope) => {
+      onSelectScope(newScope);
+      if (isMobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const handleTowerClick = (tid: string) => {
+      onSelectSidebarTower(tid);
+      onSelectScope({ type: 'tower', towerId: tid });
+      if (isMobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const handleFloorClick = (tId: string, fId: string) => {
+      onSelectScope({ type: 'floor', towerId: tId, floorId: fId });
+      setFloorFormOpen(false);
+      if (isMobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const handleAreaClick = (areaId: string) => {
+      onOpenUnitPanel('area-' + areaId, 'area');
+      if (isMobile) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    return (
+      <div className="flex flex-col gap-4">
+        {/* User Badge */}
+        <div className="flex items-center justify-between gap-2 bg-white/10 border border-white/20 rounded-md p-2.5 font-mono-custom text-xs">
+          <div className="min-w-0 overflow-hidden">
+            <span className="truncate block max-w-[170px] text-white font-medium">
+              {userEmail || 'Sin identificar'}
             </span>
-            <span className="text-[9.5px] font-mono-custom tracking-wider text-[#6C8079] uppercase mt-0.5 font-medium">
-              Rionegro · Antioquia
+            <span className={`text-[9.5px] uppercase tracking-wide block mt-0.5 ${isEditor ? 'text-[#9FC93A] font-bold' : 'text-white/60'}`}>
+              {isEditor ? 'Editor Coninsa' : 'Solo lectura'}
             </span>
           </div>
-        </div>
-
-        <div className="w-4/5 h-px bg-[#E2E8F0]" />
-
-        {/* Coninsa Logo */}
-        <img
-          src="/assets/logo-coninsa.svg"
-          alt="Coninsa"
-          className="h-6 w-auto max-w-full object-contain"
-          loading="eager"
-        />
-      </div>
-
-      {/* Project Title */}
-      <div>
-        <p className="font-mono-custom text-[10px] tracking-[0.16em] uppercase text-white/70 m-0">Cuadro de control</p>
-        <h1 className="font-display text-2xl uppercase font-semibold tracking-tight m-0 leading-tight">
-          {config.projectName || 'Vida Park'}
-        </h1>
-      </div>
-
-      {/* User Badge */}
-      <div className="flex items-center justify-between gap-2 bg-white/10 border border-white/20 rounded-md p-2.5 font-mono-custom text-xs">
-        <div className="min-w-0 overflow-hidden">
-          <span className="truncate block max-w-[140px] text-white font-medium">
-            {userEmail || 'Sin identificar'}
-          </span>
-          <span className={`text-[9.5px] uppercase tracking-wide block mt-0.5 ${isEditor ? 'text-[#9FC93A] font-bold' : 'text-white/60'}`}>
-            {isEditor ? 'Editor Coninsa' : 'Solo lectura'}
-          </span>
-        </div>
-        <button
-          onClick={onOpenGate}
-          className="shrink-0 bg-transparent border border-white/30 hover:bg-white/15 text-white rounded px-2 py-1 text-[10px] uppercase transition"
-        >
-          {userEmail ? 'Cambiar' : 'Ingresar'}
-        </button>
-      </div>
-
-      {/* Stat Tiles */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onSelectScope({ type: 'all' })}
-          className={`flex-1 rounded-md p-2 text-center transition border ${
-            scope.type === 'all'
-              ? 'bg-white text-[#22406E] border-white font-semibold'
-              : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
-          }`}
-        >
-          <span className="font-mono-custom font-bold text-lg block leading-none">{totalApts}</span>
-          <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Aptos</span>
-        </button>
-        <button
-          onClick={() => onSelectScope({ type: 'status', status: 'pending' })}
-          className={`flex-1 rounded-md p-2 text-center transition border ${
-            scope.type === 'status' && scope.status === 'pending'
-              ? 'bg-white text-[#22406E] border-white font-semibold'
-              : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
-          }`}
-        >
-          <span className="font-mono-custom font-bold text-lg block leading-none">{pendientes}</span>
-          <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Pend.</span>
-        </button>
-        <button
-          onClick={() => onSelectScope({ type: 'status', status: 'done' })}
-          className={`flex-1 rounded-md p-2 text-center transition border ${
-            scope.type === 'status' && scope.status === 'done'
-              ? 'bg-white text-[#22406E] border-white font-semibold'
-              : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
-          }`}
-        >
-          <span className="font-mono-custom font-bold text-lg block leading-none">{completas}</span>
-          <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Listos</span>
-        </button>
-      </div>
-
-      {/* CTA Add Apartment */}
-      {isEditor && (
-        <button
-          onClick={() => {
-            const targetFloor = currentTower?.floors[0]?.id;
-            onOpenAddApt(sidebarTower, targetFloor);
-          }}
-          className="w-full bg-[#9FC93A] hover:brightness-105 active:scale-[0.99] text-[#1B3311] py-3 px-4 rounded-lg font-display uppercase tracking-wide font-bold text-sm transition shadow-sm"
-        >
-          + Agregar apartamento
-        </button>
-      )}
-
-      {/* Breakdown Box */}
-      <div className="bg-white/10 border border-white/15 rounded-md p-3">
-        <p className="font-mono-custom text-[9.5px] uppercase tracking-widest text-white/70 m-0 mb-2 font-semibold">
-          Unidades por estado
-        </p>
-        <div className="grid grid-cols-2 gap-1.5 text-xs font-mono-custom">
           <button
-            onClick={() => onSelectScope({ type: 'status', status: 'done' })}
-            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+            type="button"
+            onClick={onOpenGate}
+            className="shrink-0 bg-transparent border border-white/30 hover:bg-white/15 text-white rounded px-2 py-1 text-[10px] uppercase transition cursor-pointer"
+          >
+            {userEmail ? 'Cambiar' : 'Ingresar'}
+          </button>
+        </div>
+
+        {/* Quick Stat Tiles */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleScopeClick({ type: 'all' })}
+            className={`flex-1 rounded-md p-2 text-center transition border cursor-pointer ${
+              scope.type === 'all'
+                ? 'bg-white text-[#22406E] border-white font-semibold shadow-xs'
+                : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
+            }`}
+          >
+            <span className="font-mono-custom font-bold text-lg block leading-none">{totalApts}</span>
+            <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Todas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleScopeClick({ type: 'status', status: 'pending' })}
+            className={`flex-1 rounded-md p-2 text-center transition border cursor-pointer ${
+              scope.type === 'status' && scope.status === 'pending'
+                ? 'bg-white text-[#22406E] border-white font-semibold shadow-xs'
+                : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
+            }`}
+          >
+            <span className="font-mono-custom font-bold text-lg block leading-none">{pendientes}</span>
+            <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Pend.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleScopeClick({ type: 'status', status: 'done' })}
+            className={`flex-1 rounded-md p-2 text-center transition border cursor-pointer ${
               scope.type === 'status' && scope.status === 'done'
-                ? 'bg-white/25 border-white text-white font-bold'
-                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+                ? 'bg-white text-[#22406E] border-white font-semibold shadow-xs'
+                : 'bg-white/10 border-white/20 hover:bg-white/15 text-white'
             }`}
-            title="Filtrar apartamentos con 100% de tareas completadas"
           >
-            <span>Completas</span>
-            <span className="font-bold text-[#9FC93A]">{completas}</span>
-          </button>
-
-          <button
-            onClick={() => onSelectScope({ type: 'status', status: 'in_progress' })}
-            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
-              scope.type === 'status' && scope.status === 'in_progress'
-                ? 'bg-white/25 border-white text-white font-bold'
-                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
-            }`}
-            title="Filtrar apartamentos con avance parcial"
-          >
-            <span>En progreso</span>
-            <span className="font-bold text-[#BFEAF9]">{progreso}</span>
-          </button>
-
-          <button
-            onClick={() => onSelectScope({ type: 'status', status: 'not_started' })}
-            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
-              scope.type === 'status' && scope.status === 'not_started'
-                ? 'bg-white/25 border-white text-white font-bold'
-                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
-            }`}
-            title="Filtrar apartamentos con 0% de avance"
-          >
-            <span>Sin iniciar</span>
-            <span className="font-bold text-white">{sinIniciar}</span>
-          </button>
-
-          <button
-            onClick={() => onSelectScope({ type: 'status', status: 'no_tasks' })}
-            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
-              scope.type === 'status' && scope.status === 'no_tasks'
-                ? 'bg-white/25 border-white text-white font-bold'
-                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
-            }`}
-            title="Filtrar apartamentos sin lista de actividades"
-          >
-            <span>Sin tareas</span>
-            <span className="font-bold text-white/60">{sinActividades}</span>
+            <span className="font-mono-custom font-bold text-lg block leading-none">{completas}</span>
+            <span className="font-mono-custom text-[8.5px] uppercase tracking-wider opacity-80 block mt-1">Listas</span>
           </button>
         </div>
 
-        {reformasCount > 0 && (
+        {/* CTA Add Apartment */}
+        {isEditor && (
           <button
-            onClick={() => onSelectScope({ type: 'reforms' })}
-            className={`w-full mt-2 flex items-center justify-between p-1.5 rounded text-xs font-mono-custom transition cursor-pointer border ${
-              scope.type === 'reforms'
-                ? 'bg-[#8A3FFC] border-purple-300 text-white font-bold shadow-xs'
-                : 'bg-[#8A3FFC]/20 border-purple-400/30 hover:bg-[#8A3FFC]/35 text-purple-200'
-            }`}
-            title="Filtrar apartamentos marcados con Reforma Especial"
+            type="button"
+            onClick={() => {
+              const targetFloor = currentTower?.floors[0]?.id;
+              onOpenAddApt(sidebarTower, targetFloor);
+              if (isMobile) setMobileMenuOpen(false);
+            }}
+            className="w-full bg-[#9FC93A] hover:brightness-105 active:scale-[0.99] text-[#1B3311] py-2.5 px-3.5 rounded-lg font-display uppercase tracking-wide font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <span className="flex items-center gap-1">
-              ⭐ Con Reforma Especial
-            </span>
-            <span className="bg-white/20 px-1.5 py-0.2 rounded font-bold text-white">
-              {reformasCount}
-            </span>
+            <Plus className="w-4 h-4" />
+            <span>Agregar apartamento</span>
           </button>
         )}
-      </div>
 
-      {/* Tower Picker */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/70 m-0 font-semibold">
-            Torres
+        {/* Breakdown Box */}
+        <div className="bg-white/10 border border-white/15 rounded-md p-3">
+          <p className="font-mono-custom text-[9.5px] uppercase tracking-widest text-white/70 m-0 mb-2 font-semibold">
+            Unidades por estado
           </p>
-          <span className="text-[10px] font-mono-custom text-white/50">
-            {config.towers.length} registradas
-          </span>
-        </div>
-        <div className="flex flex-col gap-2">
-          {STAGES.map(stage => (
-            <div key={stage.id} className="flex flex-col gap-1">
-              <span className="font-mono-custom text-[9px] uppercase tracking-wider text-white/50">{stage.label}</span>
-              <div className="grid grid-cols-2 gap-1.5">
-                {stage.towers.map(tid => {
-                  const isFiltered = (scope.type === 'tower' || scope.type === 'floor') && scope.towerId === tid;
-                  const isCurrentSidebar = tid === sidebarTower;
-                  const tStats = getTowerStats(tid);
+          <div className="grid grid-cols-2 gap-1.5 text-xs font-mono-custom">
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'status', status: 'done' })}
+              className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+                scope.type === 'status' && scope.status === 'done'
+                  ? 'bg-white/25 border-white text-white font-bold'
+                  : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+              }`}
+              title="Filtrar apartamentos con 100% de tareas completadas"
+            >
+              <span>Completas</span>
+              <span className="font-bold text-[#9FC93A]">{completas}</span>
+            </button>
 
-                  return (
-                    <button
-                      key={tid}
-                      type="button"
-                      onClick={() => {
-                        onSelectSidebarTower(tid);
-                        onSelectScope({ type: 'tower', towerId: tid });
-                        setFloorFormOpen(false);
-                      }}
-                      className={`h-9 px-2 flex items-center justify-between rounded text-xs font-mono-custom transition cursor-pointer border ${
-                        isFiltered
-                          ? 'bg-white text-[#22406E] border-white font-bold shadow-sm'
-                          : isCurrentSidebar
-                          ? 'bg-white/20 text-white border-white/50 font-semibold'
-                          : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-                      }`}
-                      title={`Ver Torre ${tid} (${tStats.apts} apartamentos creados)`}
-                    >
-                      <span className="font-bold">Torre {tid}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                        isFiltered
-                          ? 'bg-[#22406E]/10 text-[#22406E] font-bold'
-                          : 'bg-black/20 text-white/80'
-                      }`}>
-                        {tStats.apts}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'status', status: 'in_progress' })}
+              className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+                scope.type === 'status' && scope.status === 'in_progress'
+                  ? 'bg-white/25 border-white text-white font-bold'
+                  : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+              }`}
+              title="Filtrar apartamentos con avance parcial"
+            >
+              <span>En progreso</span>
+              <span className="font-bold text-[#BFEAF9]">{progreso}</span>
+            </button>
 
-      {/* Floors Section */}
-      <div>
-        <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/60 mb-2 font-semibold">
-          Pisos — Torre {sidebarTower}
-        </p>
-        <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
-          <button
-            onClick={() => {
-              onSelectScope({ type: 'tower', towerId: sidebarTower });
-              setFloorFormOpen(false);
-            }}
-            className={`flex justify-between items-center px-3 py-2 rounded text-xs font-mono-custom border transition ${
-              scope.type === 'tower' && scope.towerId === sidebarTower
-                ? 'bg-white text-[#22406E] font-bold border-white'
-                : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
-            }`}
-          >
-            <span>Todos los pisos</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
-          </button>
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'status', status: 'not_started' })}
+              className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+                scope.type === 'status' && scope.status === 'not_started'
+                  ? 'bg-white/25 border-white text-white font-bold'
+                  : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+              }`}
+              title="Filtrar apartamentos con 0% de avance"
+            >
+              <span>Sin iniciar</span>
+              <span className="font-bold text-white">{sinIniciar}</span>
+            </button>
 
-          {currentTower && currentTower.floors.length > 0 ? (
-            currentTower.floors.map(f => {
-              const fp = getFloorProgress(currentTower.id, f.id);
-              const isActive = scope.type === 'floor' && scope.towerId === currentTower.id && scope.floorId === f.id;
-              const dotColor = fp.apts === 0 ? 'rgba(255,255,255,0.4)' : fp.pct === 100 ? '#9FC93A' : '#BFEAF9';
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    onSelectScope({ type: 'floor', towerId: currentTower.id, floorId: f.id });
-                    setFloorFormOpen(false);
-                  }}
-                  className={`flex justify-between items-center px-3 py-2 rounded text-xs font-mono-custom border transition ${
-                    isActive
-                      ? 'bg-white text-[#22406E] font-bold border-white'
-                      : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
-                  }`}
-                >
-                  <span className="truncate">{f.label} ({fp.apts} aptos)</span>
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
-                </button>
-              );
-            })
-          ) : (
-            <div className="text-white/60 text-xs py-1">Sin pisos creados.</div>
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'status', status: 'no_tasks' })}
+              className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+                scope.type === 'status' && scope.status === 'no_tasks'
+                  ? 'bg-white/25 border-white text-white font-bold'
+                  : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+              }`}
+              title="Filtrar apartamentos sin lista de actividades"
+            >
+              <span>Sin tareas</span>
+              <span className="font-bold text-white/60">{sinActividades}</span>
+            </button>
+          </div>
+
+          {reformasCount > 0 && (
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'reforms' })}
+              className={`w-full mt-2 flex items-center justify-between p-1.5 rounded text-xs font-mono-custom transition cursor-pointer border ${
+                scope.type === 'reforms'
+                  ? 'bg-[#8A3FFC] border-purple-300 text-white font-bold shadow-xs'
+                  : 'bg-[#8A3FFC]/20 border-purple-400/30 hover:bg-[#8A3FFC]/35 text-purple-200'
+              }`}
+              title="Filtrar apartamentos marcados con Reforma Especial"
+            >
+              <span className="flex items-center gap-1">
+                ⭐ Con Reforma Especial
+              </span>
+              <span className="bg-white/20 px-1.5 py-0.2 rounded font-bold text-white">
+                {reformasCount}
+              </span>
+            </button>
           )}
         </div>
 
-        {/* Floor Edit / Add Mini Controls */}
-        {isEditor && !floorFormOpen && (
-          <div className="flex gap-1.5 mt-2">
-            <button
-              onClick={handleStartNewFloor}
-              className="flex-1 text-[10px] font-mono-custom uppercase py-1.5 px-2 rounded bg-white/10 hover:bg-white/20 border border-white/20 text-white transition"
-            >
-              + Nuevo piso
-            </button>
-            {scope.type === 'floor' && scope.towerId === sidebarTower && (
-              <button
-                onClick={() => handleStartEditFloor(scope.floorId)}
-                className="flex-1 text-[10px] font-mono-custom uppercase py-1.5 px-2 rounded bg-white/10 hover:bg-white/20 border border-white/20 text-white transition"
-              >
-                Editar piso
-              </button>
-            )}
+        {/* Tower Picker */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/70 m-0 font-semibold">
+              Torres (Etapas 1-4)
+            </p>
+            <span className="text-[10px] font-mono-custom text-white/50">
+              {config.towers.length} registradas
+            </span>
           </div>
-        )}
+          <div className="flex flex-col gap-2">
+            {STAGES.map(stage => (
+              <div key={stage.id} className="flex flex-col gap-1">
+                <span className="text-[9.5px] font-mono-custom uppercase tracking-wider text-white/60">
+                  {stage.label}
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {stage.towers.map(tid => {
+                    const isFiltered = (scope.type === 'tower' || scope.type === 'floor') && scope.towerId === tid;
+                    const isCurrentSidebar = tid === sidebarTower;
+                    const tStats = getTowerStats(tid);
 
-        {isEditor && floorFormOpen && (
-          <div className="bg-white/10 border border-white/20 rounded-md p-2.5 mt-2 flex flex-col gap-2">
-            <input
-              type="text"
-              value={floorLabel}
-              onChange={e => setFloorLabel(e.target.value)}
-              placeholder="Nombre del piso"
-              className="w-full bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
-            />
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="0"
-                max="60"
-                value={floorCount}
-                onChange={e => setFloorCount(e.target.value)}
-                placeholder="Aptos"
-                className="w-1/2 bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
-              />
-              <input
-                type="number"
-                min="1"
-                value={floorStart}
-                onChange={e => setFloorStart(e.target.value)}
-                placeholder="N° inicial"
-                className="w-1/2 bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveFloor}
-                className="flex-1 bg-[#9FC93A] text-[#1B3311] font-bold text-[11px] font-mono-custom uppercase py-1.5 rounded transition hover:brightness-105"
-              >
-                Guardar
-              </button>
-              <button
-                onClick={() => setFloorFormOpen(false)}
-                className="flex-1 bg-white/10 text-white text-[11px] font-mono-custom uppercase py-1.5 rounded transition hover:bg-white/20 border border-white/30"
-              >
-                Cancelar
-              </button>
-            </div>
-            {editingFloorId && (
-              <button
-                onClick={() => handleDeleteFloor(editingFloorId)}
-                className="w-full text-red-300 hover:text-red-100 text-[10px] font-mono-custom uppercase py-1 rounded transition"
-              >
-                Eliminar piso
-              </button>
-            )}
+                    return (
+                      <button
+                        key={tid}
+                        type="button"
+                        onClick={() => handleTowerClick(tid)}
+                        className={`h-9 px-2 flex items-center justify-between rounded text-xs font-mono-custom transition cursor-pointer border ${
+                          isFiltered
+                            ? 'bg-white text-[#22406E] border-white font-bold shadow-sm'
+                            : isCurrentSidebar
+                            ? 'bg-white/20 text-white border-white/50 font-semibold'
+                            : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                        }`}
+                        title={`Ver Torre ${tid} (${tStats.apts} apartamentos creados)`}
+                      >
+                        <span className="font-bold">Torre {tid}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          isFiltered
+                            ? 'bg-[#22406E]/10 text-[#22406E] font-bold'
+                            : 'bg-black/20 text-white/80'
+                        }`}>
+                          {tStats.apts}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
-
-      {/* Common Areas List */}
-      <div>
-        <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/60 mb-2 font-semibold">
-          Áreas comunes
-        </p>
-        <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1">
-          <button
-            onClick={() => onSelectScope({ type: 'areas' })}
-            className={`w-full text-center py-2 px-3 rounded text-xs font-mono-custom border transition font-semibold tracking-wide ${
-              scope.type === 'areas'
-                ? 'bg-white text-[#22406E] border-white'
-                : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
-            }`}
-          >
-            Ver todas
-          </button>
-          {config.areas.map(a => {
-            const ap = getAreaProgress(a.id);
-            const dotColor = ap.total === 0 ? 'rgba(255,255,255,0.4)' : ap.pct === 100 ? '#9FC93A' : '#BFEAF9';
-            return (
-              <button
-                key={a.id}
-                onClick={() => onOpenUnitPanel('area-' + a.id, 'area')}
-                className="flex justify-between items-center py-1.5 px-3 rounded text-[11px] font-mono-custom bg-white/5 border border-white/15 text-white hover:bg-white/15 transition text-left"
-              >
-                <span className="truncate">{a.name}</span>
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
-              </button>
-            );
-          })}
         </div>
+
+        {/* Floors Section */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/70 font-semibold m-0">
+              Pisos — Torre {sidebarTower}
+            </p>
+            {currentTower && (
+              <span className="text-[10px] font-mono-custom text-white/50">
+                {currentTower.floors.length} pisos
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectScope({ type: 'tower', towerId: sidebarTower });
+                setFloorFormOpen(false);
+                if (isMobile) setMobileMenuOpen(false);
+              }}
+              className={`flex justify-between items-center px-3 py-2 rounded text-xs font-mono-custom border transition cursor-pointer ${
+                scope.type === 'tower' && scope.towerId === sidebarTower
+                  ? 'bg-white text-[#22406E] font-bold border-white'
+                  : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
+              }`}
+            >
+              <span>Todos los pisos (Torre {sidebarTower})</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-white/50 shrink-0" />
+            </button>
+
+            {currentTower && currentTower.floors.length > 0 ? (
+              currentTower.floors.map(f => {
+                const fp = getFloorProgress(currentTower.id, f.id);
+                const isActive = scope.type === 'floor' && scope.towerId === currentTower.id && scope.floorId === f.id;
+                const dotColor = fp.apts === 0 ? 'rgba(255,255,255,0.4)' : fp.pct === 100 ? '#9FC93A' : '#BFEAF9';
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleFloorClick(currentTower.id, f.id)}
+                    className={`flex justify-between items-center px-3 py-2 rounded text-xs font-mono-custom border transition cursor-pointer ${
+                      isActive
+                        ? 'bg-white text-[#22406E] font-bold border-white'
+                        : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
+                    }`}
+                  >
+                    <span className="truncate">{f.label} ({fp.apts} aptos)</span>
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
+                  </button>
+                );
+              })
+            ) : (
+              <div className="text-white/60 text-xs py-1">Sin pisos creados.</div>
+            )}
+          </div>
+
+          {/* Floor Edit / Add Mini Controls */}
+          {isEditor && !floorFormOpen && (
+            <div className="flex gap-1.5 mt-2">
+              <button
+                type="button"
+                onClick={handleStartNewFloor}
+                className="flex-1 text-[10px] font-mono-custom uppercase py-1.5 px-2 rounded bg-white/10 hover:bg-white/20 border border-white/20 text-white transition cursor-pointer"
+              >
+                + Nuevo piso
+              </button>
+              {scope.type === 'floor' && scope.towerId === sidebarTower && (
+                <button
+                  type="button"
+                  onClick={() => handleStartEditFloor(scope.floorId)}
+                  className="flex-1 text-[10px] font-mono-custom uppercase py-1.5 px-2 rounded bg-white/10 hover:bg-white/20 border border-white/20 text-white transition cursor-pointer"
+                >
+                  Editar piso
+                </button>
+              )}
+            </div>
+          )}
+
+          {isEditor && floorFormOpen && (
+            <div className="bg-white/10 border border-white/20 rounded-md p-2.5 mt-2 flex flex-col gap-2">
+              <input
+                type="text"
+                value={floorLabel}
+                onChange={e => setFloorLabel(e.target.value)}
+                placeholder="Nombre del piso"
+                className="w-full bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={floorCount}
+                  onChange={e => setFloorCount(e.target.value)}
+                  placeholder="Aptos"
+                  className="w-1/2 bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  value={floorStart}
+                  onChange={e => setFloorStart(e.target.value)}
+                  placeholder="N° inicial"
+                  className="w-1/2 bg-white/15 border border-white/30 text-white rounded px-2.5 py-1.5 font-mono-custom text-xs placeholder:text-white/50 focus:outline-none focus:border-white"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveFloor}
+                  className="flex-1 bg-[#9FC93A] text-[#1B3311] font-bold text-[11px] font-mono-custom uppercase py-1.5 rounded transition hover:brightness-105 cursor-pointer"
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFloorFormOpen(false)}
+                  className="flex-1 bg-white/10 text-white text-[11px] font-mono-custom uppercase py-1.5 rounded transition hover:bg-white/20 border border-white/30 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {editingFloorId && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteFloor(editingFloorId)}
+                  className="w-full text-red-300 hover:text-red-100 text-[10px] font-mono-custom uppercase py-1 rounded transition cursor-pointer"
+                >
+                  Eliminar piso
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Common Areas List */}
+        <div>
+          <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/70 mb-2 font-semibold">
+            Áreas comunes
+          </p>
+          <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+            <button
+              type="button"
+              onClick={() => handleScopeClick({ type: 'areas' })}
+              className={`w-full text-center py-2 px-3 rounded text-xs font-mono-custom border transition font-semibold tracking-wide cursor-pointer ${
+                scope.type === 'areas'
+                  ? 'bg-white text-[#22406E] border-white'
+                  : 'bg-white/5 border-white/15 text-white hover:bg-white/15'
+              }`}
+            >
+              Ver todas las áreas
+            </button>
+            {config.areas.map(a => {
+              const ap = getAreaProgress(a.id);
+              const dotColor = ap.total === 0 ? 'rgba(255,255,255,0.4)' : ap.pct === 100 ? '#9FC93A' : '#BFEAF9';
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => handleAreaClick(a.id)}
+                  className="flex justify-between items-center py-1.5 px-3 rounded text-[11px] font-mono-custom bg-white/5 border border-white/15 text-white hover:bg-white/15 transition text-left cursor-pointer"
+                >
+                  <span className="truncate">{a.name}</span>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Close Button on Mobile */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-full mt-2 bg-white/20 hover:bg-white/30 text-white py-2.5 rounded-lg font-mono-custom text-xs uppercase font-bold tracking-wider transition border border-white/30"
+          >
+            Cerrar menú de filtros
+          </button>
+        )}
       </div>
+    );
+  };
+
+  return (
+    <>
+      {/* ======================================================== */}
+      {/* MOBILE COMPACT STICKY HEADER & COLLAPSIBLE DROPDOWN MENU */}
+      {/* ======================================================== */}
+      <div className="md:hidden sticky top-0 z-30 w-full bg-gradient-to-r from-[#22406E] via-[#2E5A94] to-[#3C6FB0] text-white shadow-md border-b border-[#3C6FB0]/40">
+        <div className="px-3.5 py-2.5 flex items-center justify-between gap-2">
+          {/* Brand Logo & Name */}
+          <div className="flex items-center gap-2 min-w-0">
+            <img
+              src="/assets/logo-vp.svg"
+              alt="Vida Park"
+              className="h-7 w-auto object-contain rounded-xs bg-white p-0.5"
+            />
+            <div className="min-w-0">
+              <span className="font-display font-bold text-sm tracking-tight text-white block leading-none">
+                VIDA <span className="text-[#8DC63F]">PARK</span>
+              </span>
+              <span className="text-[8.5px] font-mono-custom text-white/70 uppercase truncate block">
+                Cuadro de control
+              </span>
+            </div>
+          </div>
+
+          {/* Toggle Filters Dropdown Button */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono-custom text-xs border transition cursor-pointer shadow-xs ${
+                mobileMenuOpen
+                  ? 'bg-white text-[#22406E] border-white font-bold'
+                  : 'bg-white/15 hover:bg-white/25 border-white/30 text-white'
+              }`}
+              title="Abrir o cerrar menú de filtros y torres"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-[120px] truncate font-semibold">
+                {getActiveScopeText()}
+              </span>
+              {mobileMenuOpen ? (
+                <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Dropdown Content on Mobile */}
+        {mobileMenuOpen && (
+          <div className="bg-[#1E375A] border-t border-white/15 px-4 py-4 max-h-[82vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+              <span className="font-mono-custom text-xs uppercase font-bold tracking-wider text-white/80">
+                Filtros y navegación
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs flex items-center gap-1 font-mono-custom"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cerrar</span>
+              </button>
+            </div>
+            {renderFiltersContent(true)}
+          </div>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* DESKTOP PERMANENT SIDEBAR (COSTADO IZQUIERDO)            */}
+      {/* ======================================================== */}
+      <aside className="hidden md:flex w-[296px] shrink-0 min-h-screen bg-gradient-to-b from-[#22406E] via-[#3C6FB0] to-[#2E5A94] text-white p-5 sticky top-0 max-h-screen overflow-y-auto flex-col gap-5 shadow-lg">
+        {/* Brand box */}
+        <div className="bg-white rounded-lg p-3.5 flex flex-col items-center justify-center gap-3 shadow-sm">
+          {/* Vida Park Logo */}
+          <div className="flex items-center justify-center gap-2.5 w-full">
+            <img
+              src="/assets/logo-vp.svg"
+              alt="Vida Park"
+              className="h-11 w-auto object-contain rounded-xs shadow-xs"
+              loading="eager"
+            />
+            <div className="flex flex-col text-left">
+              <span className="font-display font-bold text-xl tracking-tight text-[#22406E] leading-none">
+                VIDA <span className="text-[#8DC63F]">PARK</span>
+              </span>
+              <span className="text-[9.5px] font-mono-custom tracking-wider text-[#6C8079] uppercase mt-0.5 font-medium">
+                Rionegro · Antioquia
+              </span>
+            </div>
+          </div>
+
+          <div className="w-4/5 h-px bg-[#E2E8F0]" />
+
+          {/* Coninsa Logo */}
+          <img
+            src="/assets/logo-coninsa.svg"
+            alt="Coninsa"
+            className="h-6 w-auto max-w-full object-contain"
+            loading="eager"
+          />
+        </div>
+
+        {/* Project Title */}
+        <div>
+          <p className="font-mono-custom text-[10px] tracking-[0.16em] uppercase text-white/70 m-0">Cuadro de control</p>
+          <h1 className="font-display text-2xl uppercase font-semibold tracking-tight m-0 leading-tight">
+            {config.projectName || 'Vida Park'}
+          </h1>
+        </div>
+
+        {/* Filters and navigation body */}
+        {renderFiltersContent(false)}
+      </aside>
 
       {/* Confirm Delete Floor Modal */}
       {floorToDelete && (
@@ -620,6 +809,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onCancel={() => setFloorToDelete(null)}
         />
       )}
-    </aside>
+    </>
   );
 };
