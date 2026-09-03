@@ -4,10 +4,12 @@ import {
   loadStoredData,
   saveStoredConfig,
   saveStoredStatuses,
+  subscribeToAppData,
   loadStoredUserEmail,
   saveStoredUserEmail,
   computeIsEditor,
   defaultConfig,
+  migrateConfig,
 } from './services/storage';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -22,8 +24,26 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { printQRSheet } from './utils/printQR';
 
 export default function App() {
-  const [config, setConfig] = useState<AppConfig>(() => loadStoredData().config);
-  const [statuses, setStatuses] = useState<Record<string, UnitStatus>>(() => loadStoredData().statuses);
+  // Initial state with safe default and instant cached view
+  const [config, setConfig] = useState<AppConfig>(() => {
+    try {
+      const cached = localStorage.getItem('vidapark-config');
+      return cached ? migrateConfig(JSON.parse(cached)) : defaultConfig();
+    } catch (_) {
+      return defaultConfig();
+    }
+  });
+
+  const [statuses, setStatuses] = useState<Record<string, UnitStatus>>(() => {
+    try {
+      const cached = localStorage.getItem('vidapark-statuses');
+      return cached ? JSON.parse(cached) : {};
+    } catch (_) {
+      return {};
+    }
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userEmail, setUserEmail] = useState<string | null>(() => loadStoredUserEmail());
   const [isEditor, setIsEditor] = useState<boolean>(() => computeIsEditor(loadStoredUserEmail()));
 
@@ -69,6 +89,42 @@ export default function App() {
     }
   }, [toastMessage]);
 
+  // Load Firestore Data asynchronously on mount & subscribe to real-time changes
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial async load from Cloud Firestore
+    loadStoredData()
+      .then(data => {
+        if (isMounted) {
+          setConfig(data.config);
+          setStatuses(data.statuses);
+          setIsLoading(false);
+        }
+      })
+      .catch(err => {
+        console.error('Error on initial Firestore load:', err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    // 2. Real-time updates subscription
+    const unsubscribe = subscribeToAppData(incoming => {
+      if (incoming.config) {
+        setConfig(incoming.config);
+      }
+      if (incoming.statuses) {
+        setStatuses(incoming.statuses);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   // Initial user gate prompt if not identified
   useEffect(() => {
     if (!userEmail) {
@@ -76,25 +132,25 @@ export default function App() {
     }
   }, [userEmail]);
 
-  // Save config changes
-  const handleUpdateConfig = (newConfig: AppConfig) => {
+  // Save config changes to Cloud Firestore
+  const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    saveStoredConfig(newConfig);
+    await saveStoredConfig(newConfig);
   };
 
-  // Save statuses changes
-  const handleUpdateStatuses = (newStatuses: Record<string, UnitStatus>) => {
+  // Save statuses changes to Cloud Firestore
+  const handleUpdateStatuses = async (newStatuses: Record<string, UnitStatus>) => {
     setStatuses(newStatuses);
-    saveStoredStatuses(newStatuses);
+    await saveStoredStatuses(newStatuses);
   };
 
-  const handleUpdateSingleStatus = (unitKey: string, status: UnitStatus) => {
+  const handleUpdateSingleStatus = async (unitKey: string, status: UnitStatus) => {
     const updated = { ...statuses, [unitKey]: status };
     setStatuses(updated);
-    saveStoredStatuses(updated);
+    await saveStoredStatuses(updated);
   };
 
-  const handleSaveAptDetails = (
+  const handleSaveAptDetails = async (
     oldUnitKey: string,
     updatedStatus: UnitStatus,
     targetTowerId?: string,
@@ -109,7 +165,7 @@ export default function App() {
       !targetFloorId ||
       (targetTowerId === oldTowerId && targetFloorId === oldFloorId)
     ) {
-      handleUpdateSingleStatus(oldUnitKey, updatedStatus);
+      await handleUpdateSingleStatus(oldUnitKey, updatedStatus);
     } else {
       // Move unit to selected target tower & floor
       const targetTower = config.towers.find(t => t.id === targetTowerId);
@@ -141,12 +197,12 @@ export default function App() {
           [newUnitKey]: updatedStatus,
         };
 
-        handleUpdateConfig(newConfig);
-        handleUpdateStatuses(newStatuses);
+        await handleUpdateConfig(newConfig);
+        await handleUpdateStatuses(newStatuses);
         setSidebarTower(targetTowerId);
         setScope({ type: 'floor', towerId: targetTowerId, floorId: targetFloorId });
       } else {
-        handleUpdateSingleStatus(oldUnitKey, updatedStatus);
+        await handleUpdateSingleStatus(oldUnitKey, updatedStatus);
       }
     }
   };
@@ -174,7 +230,7 @@ export default function App() {
       confirmLabel: 'Sí, eliminar apartamento',
       cancelLabel: 'Cancelar',
       isDestructive: true,
-      onConfirm: () => {
+      onConfirm: async () => {
         const current = statuses[unitKey] || { activities: [], note: '', updated: Date.now(), lastEditedBy: null };
         const updated: UnitStatus = {
           ...current,
@@ -182,7 +238,7 @@ export default function App() {
           updated: Date.now(),
           lastEditedBy: userEmail || null,
         };
-        handleUpdateSingleStatus(unitKey, updated);
+        await handleUpdateSingleStatus(unitKey, updated);
         if (activeUnitKey === unitKey) setActiveUnitKey(null);
         if (editAptUnitKey === unitKey) setEditAptUnitKey(null);
         setConfirmState(null);
@@ -197,14 +253,14 @@ export default function App() {
     saveStoredUserEmail(email);
   };
 
-  const handleResetAll = () => {
+  const handleResetAll = async () => {
     const def = defaultConfig();
     setConfig(def);
     setStatuses({});
     setScope({ type: 'all' });
     setSidebarTower('A');
-    saveStoredConfig(def);
-    saveStoredStatuses({});
+    await saveStoredConfig(def);
+    await saveStoredStatuses({});
     showToast('Datos reiniciados');
   };
 
@@ -236,10 +292,14 @@ export default function App() {
           for (let i = 0; i < f.count; i++) {
             const k = `${t.id}#${f.id}#${i}`;
             if (statuses[k]?.deleted) continue;
-            const u = statuses[k];
-            const num = String(u?.numberOverride || f.start + i).toLowerCase();
-            const haystack = `${num} torre ${t.id.toLowerCase()} ${f.label.toLowerCase()}`;
-            if (haystack.includes(q)) {
+
+            const st = statuses[k];
+            const num = st?.numberOverride || f.start + i;
+            const tMatch = t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
+            const fMatch = f.label.toLowerCase().includes(q);
+            const nMatch = String(num).includes(q);
+
+            if (tMatch || fMatch || nMatch) {
               results.push({ key: k, kind: 'apt' });
             }
           }
@@ -325,38 +385,42 @@ export default function App() {
     return allApt;
   }, [config, statuses, scope, searchQuery]);
 
+  // Title for current scope
   const scopeTitle = useMemo(() => {
     if (searchQuery.trim()) {
-      return `Resultados de búsqueda: "${searchQuery.trim()}"`;
+      return `Búsqueda: "${searchQuery.trim()}"`;
     }
-    if (scope.type === 'areas') return 'Áreas comunes';
-    if (scope.type === 'status') return scope.status === 'done' ? 'Unidades completas' : 'Unidades pendientes';
+    if (scope.type === 'all') return 'Todas las Torres';
+    if (scope.type === 'tower') {
+      const t = config.towers.find(x => x.id === scope.towerId);
+      return t ? t.name : 'Torre';
+    }
     if (scope.type === 'floor') {
       const t = config.towers.find(x => x.id === scope.towerId);
       const f = t?.floors.find(x => x.id === scope.floorId);
-      return `Torre ${scope.towerId} · ${f ? f.label : 'Piso'}`;
+      return `${t ? t.name : ''} · ${f ? f.label : 'Piso'}`;
     }
-    if (scope.type === 'tower') return `Torre ${scope.towerId}`;
-    return 'Todos los apartamentos';
-  }, [searchQuery, scope, config]);
+    if (scope.type === 'status') {
+      return scope.status === 'done' ? 'Unidades Terminadas' : 'Unidades Pendientes';
+    }
+    if (scope.type === 'areas') {
+      return 'Zonas Comunes';
+    }
+    return 'Tablero';
+  }, [scope, config, searchQuery]);
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#F3F7F3] text-[#1E3A34] items-start">
-      {/* Sidebar */}
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#F4F7F4] text-[#1E3A34]">
+      {/* Sidebar Navigation */}
       <Sidebar
         config={config}
         statuses={statuses}
         scope={scope}
         sidebarTower={sidebarTower}
-        userEmail={userEmail}
         isEditor={isEditor}
-        onSelectScope={s => {
-          setSearchQuery('');
-          setScope(s);
-        }}
-        onSelectSidebarTower={tid => {
-          setSidebarTower(tid);
-        }}
+        userEmail={userEmail}
+        onSelectScope={setScope}
+        onSelectTowerTab={setSidebarTower}
         onOpenGate={() => setGateOpen(true)}
         onOpenAddApt={(tId, fId) => {
           setAddAptTowerId(tId);
@@ -383,6 +447,14 @@ export default function App() {
           onOpenMetrics={() => setMetricsOpen(true)}
           onOpenSetup={() => setSetupOpen(true)}
         />
+
+        {/* Loading Indicator banner on initial fetch */}
+        {isLoading && (
+          <div className="mb-4 flex items-center gap-2 px-3.5 py-2 bg-[#E1E9E1] text-[#3C6FB0] rounded-lg text-xs font-mono-custom animate-pulse">
+            <span className="inline-block w-2 h-2 rounded-full bg-[#1CA2C9]"></span>
+            Sincronizando datos con Firebase Firestore...
+          </div>
+        )}
 
         {/* Cards Grid */}
         {visibleItems.length === 0 ? (
@@ -438,11 +510,9 @@ export default function App() {
           config={config}
           status={statuses[editAptUnitKey]}
           userEmail={userEmail}
-          isEditor={isEditor}
           onClose={() => setEditAptUnitKey(null)}
           onSave={handleSaveAptDetails}
-          onDelete={(key) => handleDeleteUnit(key)}
-          onOpenGate={() => setGateOpen(true)}
+          onDelete={handleDeleteUnit}
           onToast={showToast}
         />
       )}
@@ -450,21 +520,14 @@ export default function App() {
       {/* Add Apartment Modal */}
       {addAptOpen && (
         <AddAptModal
+          config={config}
           initialTowerId={addAptTowerId}
           initialFloorId={addAptFloorId}
-          config={config}
           userEmail={userEmail}
           onClose={() => setAddAptOpen(false)}
-          onSaveNewApt={(tId, fId, newStatus, newConfig) => {
-            const fl = newConfig.towers.find(t => t.id === tId)?.floors.find(f => f.id === fId);
-            const idx = (fl?.count || 1) - 1;
-            const newKey = `${tId}#${fId}#${idx}`;
-            const updatedStatuses = { ...statuses, [newKey]: newStatus };
-            handleUpdateConfig(newConfig);
-            handleUpdateStatuses(updatedStatuses);
-            setAddAptOpen(false);
-            setScope({ type: 'floor', towerId: tId, floorId: fId });
-            setSidebarTower(tId);
+          onSave={(newCfg, newSt) => {
+            handleUpdateConfig(newCfg);
+            handleUpdateStatuses(newSt);
           }}
           onToast={showToast}
         />
@@ -472,7 +535,16 @@ export default function App() {
 
       {/* Metrics Modal */}
       {metricsOpen && (
-        <MetricsModal config={config} statuses={statuses} onClose={() => setMetricsOpen(false)} />
+        <MetricsModal
+          config={config}
+          statuses={statuses}
+          onClose={() => setMetricsOpen(false)}
+          onSelectUnit={(key) => {
+            setMetricsOpen(false);
+            setActiveUnitKey(key);
+            setActiveUnitKind('apt');
+          }}
+        />
       )}
 
       {/* Setup Modal */}
@@ -488,10 +560,10 @@ export default function App() {
         />
       )}
 
-      {/* Access Gate Modal */}
+      {/* Gate Modal */}
       {gateOpen && (
         <GateModal
-          initialEmail={userEmail}
+          currentEmail={userEmail}
           onClose={() => setGateOpen(false)}
           onSaveEmail={handleSaveEmail}
           onToast={showToast}
