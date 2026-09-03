@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 270" width="100%" height="100%">
+  <defs>
+    <!-- Clip path to keep everything within inner boundary -->
+    <clipPath id="inner-rect">
+      <rect x="12" y="12" width="296" height="246" />
+    </clipPath>
+  </defs>
+
+  <!-- Solid White Outer Canvas/Border -->
+  <rect width="320" height="270" fill="#FFFFFF" />
+
+  <!-- 5 Colored Horizontal Bands -->
+  <g clip-path="url(#inner-rect)">
+    <!-- Row 1 (top): Lime Green -->
+    <rect x="12" y="12" width="296" height="44" fill="#8DC63F" />
+    <!-- Row 2: Light Teal -->
+    <rect x="12" y="62" width="296" height="44" fill="#4DB8A7" />
+    <!-- Row 3: Teal -->
+    <rect x="12" y="112" width="296" height="44" fill="#00A3A6" />
+    <!-- Row 4: Sky Blue -->
+    <rect x="12" y="162" width="296" height="44" fill="#00A0DF" />
+    <!-- Row 5 (bottom): Royal Slate Blue -->
+    <rect x="12" y="212" width="296" height="46" fill="#3D68B0" />
+
+    <!-- White Monogram Structure: V and P (O-bowl) -->
+    <!-- The V: apex at (148, 206), left arm up to (26, 12), right arm up to (176, 12) -->
+    <path d="M 26 12 L 148 212 L 178 12" fill="none" stroke="#FFFFFF" stroke-width="19" stroke-linecap="square" stroke-linejoin="miter" />
+
+    <!-- The P Loop: circle centered at (212, 137) with outer radius 68, stroke width 19 -->
+    <circle cx="210" cy="137" r="62" fill="none" stroke="#FFFFFF" stroke-width="19" />
+
+    <!-- Vertical Stem from V apex / P stem going down across bottom stripe -->
+    <rect x="138.5" y="206" width="19" height="52" fill="#FFFFFF" />
+
+    <!-- Horizontal White Slices (gap = 6px) that overlay across entire width -->
+    <rect x="0" y="56" width="320" height="6" fill="#FFFFFF" />
+    <rect x="0" y="106" width="320" height="6" fill="#FFFFFF" />
+    <rect x="0" y="156" width="320" height="6" fill="#FFFFFF" />
+    <rect x="0" y="206" width="320" height="6" fill="#FFFFFF" />
+  </g>
+
+  <!-- Crisp White Outer Frame Border (12px on all sides) -->
+  <rect x="0" y="0" width="320" height="270" fill="none" stroke="#FFFFFF" stroke-width="24" />
+</svg>

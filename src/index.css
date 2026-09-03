@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --vp-green: #9FC93A;
+    --vp-teal: #26B1B8;
+    --vp-cyan: #30AFE4;
+    --vp-blue: #3C6FB0;
+    --vp-blue-deep: #22406E;
+
+    --bg-deep: #F3F7F3;
+    --bg-panel: #FFFFFF;
+    --bg-panel-2: #EFF4EF;
+    --ink: #1E3A34;
+    --ink-muted: #6C8079;
+    --ink-dim: #A9BAB1;
+    --amber: #1CA2C9;
+    --amber-dim: #E1F3FA;
+    --green: #6EAE2E;
+    --green-dim: #EBF6DC;
+    --line: #E1E9E1;
+    --line-strong: #CBD9CC;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-deep);
+    color: var(--ink);
+  }
+
+  .font-display {
+    font-family: 'Oswald', sans-serif;
+  }
+
+  .font-mono-custom {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD9CC;
+  border-radius: 4px;
+}
