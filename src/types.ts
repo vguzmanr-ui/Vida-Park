@@ -55,7 +55,8 @@ export interface AppConfig {
 
 export type Scope =
   | { type: 'all' }
-  | { type: 'status'; status: 'done' | 'pending' }
+  | { type: 'status'; status: 'done' | 'pending' | 'in_progress' | 'not_started' | 'no_tasks' }
+  | { type: 'reforms' }
   | { type: 'tower'; towerId: string }
   | { type: 'floor'; towerId: string; floorId: string }
   | { type: 'areas' };

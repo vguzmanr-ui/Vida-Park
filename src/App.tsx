@@ -295,11 +295,20 @@ export default function App() {
 
             const st = statuses[k];
             const num = st?.numberOverride || f.start + i;
+            const typ = st?.typology || '';
+            const fin = st?.finish || '';
+            const note = st?.note || '';
+            const isReform = st?.customReforms ? 'reforma' : '';
+
             const tMatch = t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q);
             const fMatch = f.label.toLowerCase().includes(q);
-            const nMatch = String(num).includes(q);
+            const nMatch = String(num).includes(q) || `apto ${num}`.toLowerCase().includes(q);
+            const typMatch = typ.toLowerCase().includes(q);
+            const finMatch = fin.toLowerCase().includes(q);
+            const noteMatch = note.toLowerCase().includes(q);
+            const refMatch = isReform.includes(q);
 
-            if (tMatch || fMatch || nMatch) {
+            if (tMatch || fMatch || nMatch || typMatch || finMatch || noteMatch || refMatch) {
               results.push({ key: k, kind: 'apt' });
             }
           }
@@ -307,7 +316,7 @@ export default function App() {
       });
 
       config.areas.forEach(a => {
-        if (a.name.toLowerCase().includes(q)) {
+        if (a.name.toLowerCase().includes(q) || `área ${a.name}`.toLowerCase().includes(q)) {
           results.push({ key: `area-${a.id}`, kind: 'area', area: a });
         }
       });
@@ -316,6 +325,21 @@ export default function App() {
 
     if (scope.type === 'areas') {
       return config.areas.map(a => ({ key: `area-${a.id}`, kind: 'area', area: a }));
+    }
+
+    if (scope.type === 'reforms') {
+      const results: UnitCardItem[] = [];
+      config.towers.forEach(t => {
+        t.floors.forEach(f => {
+          for (let i = 0; i < f.count; i++) {
+            const k = `${t.id}#${f.id}#${i}`;
+            if (!statuses[k]?.deleted && statuses[k]?.customReforms) {
+              results.push({ key: k, kind: 'apt' });
+            }
+          }
+        });
+      });
+      return results;
     }
 
     if (scope.type === 'status') {
@@ -327,13 +351,29 @@ export default function App() {
             if (statuses[k]?.deleted) continue;
             const u = statuses[k];
             const acts = u?.activities || [];
-            const isDone = acts.length > 0 && acts.every(a => a.done);
+            const doneCount = acts.filter(a => a.done).length;
+            const totalCount = acts.length;
 
-            if (scope.status === 'done' && isDone) {
-              results.push({ key: k, kind: 'apt' });
-            }
-            if (scope.status === 'pending' && !isDone) {
-              results.push({ key: k, kind: 'apt' });
+            if (scope.status === 'done') {
+              if (totalCount > 0 && doneCount === totalCount) {
+                results.push({ key: k, kind: 'apt' });
+              }
+            } else if (scope.status === 'pending') {
+              if (totalCount === 0 || doneCount < totalCount) {
+                results.push({ key: k, kind: 'apt' });
+              }
+            } else if (scope.status === 'in_progress') {
+              if (totalCount > 0 && doneCount > 0 && doneCount < totalCount) {
+                results.push({ key: k, kind: 'apt' });
+              }
+            } else if (scope.status === 'not_started') {
+              if (totalCount > 0 && doneCount === 0) {
+                results.push({ key: k, kind: 'apt' });
+              }
+            } else if (scope.status === 'no_tasks') {
+              if (totalCount === 0) {
+                results.push({ key: k, kind: 'apt' });
+              }
             }
           }
         });
@@ -401,7 +441,17 @@ export default function App() {
       return `${t ? t.name : ''} · ${f ? f.label : 'Piso'}`;
     }
     if (scope.type === 'status') {
-      return scope.status === 'done' ? 'Unidades Terminadas' : 'Unidades Pendientes';
+      switch (scope.status) {
+        case 'done': return 'Unidades Terminadas (100%)';
+        case 'pending': return 'Unidades Pendientes';
+        case 'in_progress': return 'Unidades En Progreso';
+        case 'not_started': return 'Unidades Sin Iniciar (0%)';
+        case 'no_tasks': return 'Unidades Sin Tareas Asignadas';
+        default: return 'Unidades por Estado';
+      }
+    }
+    if (scope.type === 'reforms') {
+      return 'Unidades con Reforma Especial ⭐';
     }
     if (scope.type === 'areas') {
       return 'Zonas Comunes';
@@ -419,8 +469,15 @@ export default function App() {
         sidebarTower={sidebarTower}
         isEditor={isEditor}
         userEmail={userEmail}
-        onSelectScope={setScope}
-        onSelectTowerTab={setSidebarTower}
+        onSelectScope={(newScope) => {
+          setScope(newScope);
+          if (newScope.type === 'tower' || newScope.type === 'floor') {
+            setSidebarTower(newScope.towerId);
+          }
+        }}
+        onSelectSidebarTower={(tId) => {
+          setSidebarTower(tId);
+        }}
         onOpenGate={() => setGateOpen(true)}
         onOpenAddApt={(tId, fId) => {
           setAddAptTowerId(tId);

@@ -7,9 +7,10 @@ interface MetricsModalProps {
   config: AppConfig;
   statuses: Record<string, UnitStatus>;
   onClose: () => void;
+  onSelectUnit?: (key: string) => void;
 }
 
-export const MetricsModal: React.FC<MetricsModalProps> = ({ config, statuses, onClose }) => {
+export const MetricsModal: React.FC<MetricsModalProps> = ({ config, statuses, onClose, onSelectUnit }) => {
   // Collect all apartment keys
   const allAptKeys: string[] = [];
   config.towers.forEach(t => {
@@ -282,15 +283,19 @@ export const MetricsModal: React.FC<MetricsModalProps> = ({ config, statuses, on
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {t.reformsList.map(apt => (
-                              <span
+                              <button
                                 key={apt.key}
-                                title={`Apto ${apt.number} · ${apt.finish} (${apt.pct}% avance)`}
-                                className="inline-flex items-center gap-1 bg-white border border-purple-200 text-[#581C87] px-2 py-0.5 rounded font-mono-custom text-[11px] font-bold shadow-2xs"
+                                type="button"
+                                onClick={() => onSelectUnit && onSelectUnit(apt.key)}
+                                title={`Abrir ficha de Apto ${apt.number} · ${apt.finish} (${apt.pct}% avance)`}
+                                className={`inline-flex items-center gap-1 bg-white border border-purple-200 text-[#581C87] px-2 py-0.5 rounded font-mono-custom text-[11px] font-bold shadow-2xs transition ${
+                                  onSelectUnit ? 'hover:bg-purple-600 hover:text-white hover:border-purple-600 cursor-pointer' : ''
+                                }`}
                               >
-                                <Star className="w-2.5 h-2.5 fill-[#8A3FFC] text-[#8A3FFC]" />
+                                <Star className="w-2.5 h-2.5 fill-[#8A3FFC] text-[#8A3FFC] group-hover:fill-white" />
                                 <span>Apto {apt.number}</span>
-                                <span className="text-[9.5px] text-[#8A3FFC] font-normal">({apt.pct}%)</span>
-                              </span>
+                                <span className="text-[9.5px] opacity-80 font-normal">({apt.pct}%)</span>
+                              </button>
                             ))}
                           </div>
                         </div>

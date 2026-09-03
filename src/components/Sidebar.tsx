@@ -57,9 +57,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   let progreso = 0;
   let sinIniciar = 0;
   let sinActividades = 0;
+  let reformasCount = 0;
 
   allAptKeys.forEach(k => {
     const u = statuses[k];
+    if (u?.customReforms) reformasCount++;
     if (!u || !u.activities || u.activities.length === 0) {
       sinActividades++;
     } else {
@@ -74,6 +76,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const pendientes = totalApts - completas;
 
   const currentTower = config.towers.find(t => t.id === sidebarTower);
+
+  const getTowerStats = (towerId: string) => {
+    const tower = config.towers.find(t => t.id === towerId);
+    if (!tower) return { apts: 0, pct: 0 };
+    let apts = 0;
+    let totalTasks = 0;
+    let doneTasks = 0;
+    tower.floors.forEach(f => {
+      for (let i = 0; i < f.count; i++) {
+        const k = `${towerId}#${f.id}#${i}`;
+        if (!statuses[k]?.deleted) {
+          apts++;
+          const u = statuses[k];
+          if (u && u.activities && u.activities.length > 0) {
+            totalTasks += u.activities.length;
+            doneTasks += u.activities.filter(a => a.done).length;
+          }
+        }
+      }
+    });
+    return {
+      apts,
+      pct: totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0,
+    };
+  };
 
   const getFloorProgress = (towerId: string, floorId: string) => {
     const floor = config.towers.find(t => t.id === towerId)?.floors.find(f => f.id === floorId);
@@ -295,53 +322,126 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <p className="font-mono-custom text-[9.5px] uppercase tracking-widest text-white/70 m-0 mb-2 font-semibold">
           Unidades por estado
         </p>
-        <div className="grid grid-cols-2 gap-2 text-xs font-mono-custom">
-          <div className="flex justify-between gap-1">
-            <span className="text-white/80">Completas</span>
+        <div className="grid grid-cols-2 gap-1.5 text-xs font-mono-custom">
+          <button
+            onClick={() => onSelectScope({ type: 'status', status: 'done' })}
+            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+              scope.type === 'status' && scope.status === 'done'
+                ? 'bg-white/25 border-white text-white font-bold'
+                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+            }`}
+            title="Filtrar apartamentos con 100% de tareas completadas"
+          >
+            <span>Completas</span>
             <span className="font-bold text-[#9FC93A]">{completas}</span>
-          </div>
-          <div className="flex justify-between gap-1">
-            <span className="text-white/80">En progreso</span>
+          </button>
+
+          <button
+            onClick={() => onSelectScope({ type: 'status', status: 'in_progress' })}
+            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+              scope.type === 'status' && scope.status === 'in_progress'
+                ? 'bg-white/25 border-white text-white font-bold'
+                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+            }`}
+            title="Filtrar apartamentos con avance parcial"
+          >
+            <span>En progreso</span>
             <span className="font-bold text-[#BFEAF9]">{progreso}</span>
-          </div>
-          <div className="flex justify-between gap-1">
-            <span className="text-white/80">Sin iniciar</span>
+          </button>
+
+          <button
+            onClick={() => onSelectScope({ type: 'status', status: 'not_started' })}
+            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+              scope.type === 'status' && scope.status === 'not_started'
+                ? 'bg-white/25 border-white text-white font-bold'
+                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+            }`}
+            title="Filtrar apartamentos con 0% de avance"
+          >
+            <span>Sin iniciar</span>
             <span className="font-bold text-white">{sinIniciar}</span>
-          </div>
-          <div className="flex justify-between gap-1">
-            <span className="text-white/80">Sin tareas</span>
-            <span className="font-bold text-white/50">{sinActividades}</span>
-          </div>
+          </button>
+
+          <button
+            onClick={() => onSelectScope({ type: 'status', status: 'no_tasks' })}
+            className={`flex justify-between items-center p-1.5 rounded transition text-left cursor-pointer border ${
+              scope.type === 'status' && scope.status === 'no_tasks'
+                ? 'bg-white/25 border-white text-white font-bold'
+                : 'bg-white/5 border-transparent hover:bg-white/15 text-white/80'
+            }`}
+            title="Filtrar apartamentos sin lista de actividades"
+          >
+            <span>Sin tareas</span>
+            <span className="font-bold text-white/60">{sinActividades}</span>
+          </button>
         </div>
+
+        {reformasCount > 0 && (
+          <button
+            onClick={() => onSelectScope({ type: 'reforms' })}
+            className={`w-full mt-2 flex items-center justify-between p-1.5 rounded text-xs font-mono-custom transition cursor-pointer border ${
+              scope.type === 'reforms'
+                ? 'bg-[#8A3FFC] border-purple-300 text-white font-bold shadow-xs'
+                : 'bg-[#8A3FFC]/20 border-purple-400/30 hover:bg-[#8A3FFC]/35 text-purple-200'
+            }`}
+            title="Filtrar apartamentos marcados con Reforma Especial"
+          >
+            <span className="flex items-center gap-1">
+              ⭐ Con Reforma Especial
+            </span>
+            <span className="bg-white/20 px-1.5 py-0.2 rounded font-bold text-white">
+              {reformasCount}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Tower Picker */}
       <div>
-        <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/60 mb-2 font-semibold">
-          Torres
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-mono-custom text-[10px] tracking-widest uppercase text-white/70 m-0 font-semibold">
+            Torres
+          </p>
+          <span className="text-[10px] font-mono-custom text-white/50">
+            {config.towers.length} registradas
+          </span>
+        </div>
         <div className="flex flex-col gap-2">
           {STAGES.map(stage => (
             <div key={stage.id} className="flex flex-col gap-1">
               <span className="font-mono-custom text-[9px] uppercase tracking-wider text-white/50">{stage.label}</span>
-              <div className="flex gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {stage.towers.map(tid => {
-                  const isActive = tid === sidebarTower;
+                  const isFiltered = (scope.type === 'tower' || scope.type === 'floor') && scope.towerId === tid;
+                  const isCurrentSidebar = tid === sidebarTower;
+                  const tStats = getTowerStats(tid);
+
                   return (
                     <button
                       key={tid}
+                      type="button"
                       onClick={() => {
                         onSelectSidebarTower(tid);
                         onSelectScope({ type: 'tower', towerId: tid });
                         setFloorFormOpen(false);
                       }}
-                      className={`flex-1 h-8 rounded text-xs font-mono-custom font-bold border transition ${
-                        isActive
-                          ? 'bg-white text-[#22406E] border-white shadow-sm'
+                      className={`h-9 px-2 flex items-center justify-between rounded text-xs font-mono-custom transition cursor-pointer border ${
+                        isFiltered
+                          ? 'bg-white text-[#22406E] border-white font-bold shadow-sm'
+                          : isCurrentSidebar
+                          ? 'bg-white/20 text-white border-white/50 font-semibold'
                           : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
                       }`}
+                      title={`Ver Torre ${tid} (${tStats.apts} apartamentos creados)`}
                     >
-                      {tid}
+                      <span className="font-bold">Torre {tid}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        isFiltered
+                          ? 'bg-[#22406E]/10 text-[#22406E] font-bold'
+                          : 'bg-black/20 text-white/80'
+                      }`}>
+                        {tStats.apts}
+                      </span>
                     </button>
                   );
                 })}

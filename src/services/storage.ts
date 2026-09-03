@@ -35,6 +35,18 @@ export function migrateConfig(config: AppConfig): AppConfig {
   if (!Array.isArray(config.areas)) config.areas = DEFAULT_AREAS.slice();
   if (!Array.isArray(config.masterActivities)) config.masterActivities = [];
 
+  // Guarantee all towers A-H exist
+  TOWER_IDS.forEach(tId => {
+    if (!config.towers.some(t => t.id === tId)) {
+      config.towers.push({
+        id: tId,
+        name: 'Torre ' + tId,
+        stage: stageForTower(tId),
+        floors: defaultFloors(),
+      });
+    }
+  });
+
   config.towers.forEach(t => {
     if (!Array.isArray(t.floors)) t.floors = [];
     if (!t.stage) t.stage = stageForTower(t.id);
